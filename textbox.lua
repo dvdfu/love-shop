@@ -164,10 +164,10 @@ function textbox:update(dt)
 	end
 	function love.keypressed(key)
 		if not self.visible then return end
-		if key == 'a' then
+		if key == ' ' then
 			if not self.writing then
 				if self:optionsActive() then
-					self.optionCallback(self.options[self.optionIndex+1])
+					self.optionCallback(self.options[self.optionIndex+1], self.optionIndex)
 				elseif #self.textList > 0 then
 					self:nextPage()
 				end
@@ -193,29 +193,56 @@ function textbox:update(dt)
 	end
 end
 
+function textbox:drawBox(x, y, w, h)
+	if not self.patch then return end
+	local sx = (w - 2*self.patchW) / self.patchW
+	local sy = (h - 2*self.patchH) / self.patchH
+
+	love.graphics.draw(self.patch, self.patchTL, x, y)
+	love.graphics.draw(self.patch, self.patchML, x, y + self.patchH, 0, 1, sy)
+	love.graphics.draw(self.patch, self.patchBL, x, y + h - self.patchH)
+
+	love.graphics.draw(self.patch, self.patchTC, x + self.patchW, y, 0, sx, 1)
+	love.graphics.draw(self.patch, self.patchMC, x + self.patchW, y + self.patchH, 0, sx, sy)
+	love.graphics.draw(self.patch, self.patchBC, x + self.patchW, y + h - self.patchH, 0, sx, 1)
+	
+	love.graphics.draw(self.patch, self.patchTR, x + w - self.patchW, y)
+	love.graphics.draw(self.patch, self.patchMR, x + w - self.patchW, y + self.patchH, 0, 1, sy)
+	love.graphics.draw(self.patch, self.patchBR, x + w - self.patchW, y + h - self.patchH)
+end
+
+function textbox:drawOptions(x, y)
+	if not self:optionsActive() then return end
+	self:drawBox(x, y, 84, #self.options*16 + 2*self.paddingY)
+
+	local oldFont = love.graphics.getFont()
+	love.graphics.setColor(0, 0, 0)
+	love.graphics.setFont(self.font)
+	local option
+	for i = 1, #self.options do
+		option = self.options[i]
+		if i == self.optionIndex+1 then
+			love.graphics.setColor(146, 182, 182)
+			love.graphics.print(option, x + self.paddingX, y + self.paddingY + (i-1)*16)
+			love.graphics.setColor(0, 0, 0)
+		else
+			love.graphics.print(option, x + self.paddingX, y + self.paddingY + (i-1)*16)
+		end
+	end
+	love.graphics.setFont(oldFont)
+	love.graphics.setColor(255, 255, 255)
+
+	if self.icon then
+		-- love.graphics.draw(self.icon, x+6, y + self.paddingY + self.optionIndex*16+4)
+	end
+end
+
 function textbox:draw()
 	if not self.visible then return end
-	-- love.graphics.setColor(70, 70, 70)
-	-- love.graphics.rectangle('fill', self.x, self.y, self:getWidth(), self:getHeight())
-	-- love.graphics.setColor(255, 255, 255)
-	if self.patch then
-		local sx = (self:getWidth() - 2*self.patchW) / self.patchW
-		local sy = (self:getHeight() - 2*self.patchH) / self.patchH
 
-		love.graphics.draw(self.patch, self.patchTL, self.x, self.y)
-		love.graphics.draw(self.patch, self.patchML, self.x, self.y + self.patchH, 0, 1, sy)
-		love.graphics.draw(self.patch, self.patchBL, self.x, self.y + self:getHeight() - self.patchH)
-
-		love.graphics.draw(self.patch, self.patchTC, self.x + self.patchW, self.y, 0, sx, 1)
-		love.graphics.draw(self.patch, self.patchMC, self.x + self.patchW, self.y + self.patchH, 0, sx, sy)
-		love.graphics.draw(self.patch, self.patchBC, self.x + self.patchW, self.y + self:getHeight() - self.patchH, 0, sx, 1)
-		
-		love.graphics.draw(self.patch, self.patchTR, self.x + self:getWidth() - self.patchW, self.y)
-		love.graphics.draw(self.patch, self.patchMR, self.x + self:getWidth() - self.patchW, self.y + self.patchH, 0, 1, sy)
-		love.graphics.draw(self.patch, self.patchBR, self.x + self:getWidth() - self.patchW, self.y + self:getHeight() - self.patchH)
-		
-	end
-
+	self:drawBox(self.x, self.y, self:getWidth(), self:getHeight())
+	self:drawOptions(self.x + self:getWidth() + self.paddingX, self.y)
+	
 	local oldFont = love.graphics.getFont()
 	love.graphics.setColor(0, 0, 0)
 	love.graphics.setFont(self.font)
@@ -225,22 +252,6 @@ function textbox:draw()
 
 	if self.icon and not self.writing and not self:optionsActive() then
 		love.graphics.draw(self.icon, self.x + self:getWidth() - self.iconRight, self.y + self:getHeight() - self.iconBottom)
-	end
-
-	if self:optionsActive() then
-		local option
-		for i = 1, #self.options do
-			option = self.options[i]
-			if i == self.optionIndex+1 then
-				if self.icon then
-					love.graphics.draw(self.icon, self.x+self:getWidth()+48, self.y+i*16+3)
-				else
-					love.graphics.setColor(255, 255, 0)
-				end
-			end
-			love.graphics.print(option, self.x+self:getWidth()+64, self.y+i*16)
-			love.graphics.setColor(255, 255, 255)
-		end
 	end
 end
 
