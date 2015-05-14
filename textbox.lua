@@ -3,55 +3,58 @@ textbox.__index = textbox
 
 local function new()
 	local t = {}
-	t.texts = {}
+	t.textList = {}
 	t.textPage = 1
 	t.font = love.graphics.newFont()
 	t.textSpeed = 0.01
 	t.beatSpeed = 0.2
-	t.timer = 0
-	t.index = 0
-	t.lines = 1
-	t.displayText = ''
-	t.maxWidth = 400
-	t.maxLines = 3
+	t.timer = t.beatSpeed
+	t.charIndex = 0
+	t.textLines = 1
+	t.textLinesMax = 3
+	t.maxWidth = 240
 	t.paddingX = 20
 	t.paddingY = 20
-	t.stopped = false
-	t.visible = true
+	t.displayText = ''
+	t.writing = false
+	t.visible = false
 	t.x = 0
 	t.y = 0
+	t.options = {}
+	t.optionsIndex = 0
+	t.optionsCallback = nil
 	return setmetatable(t, textbox)
 end
 
-function textbox:setPosition(x, y)
-	self.x, self.y = x, y
+function textbox:getWidth()
+	return self.maxWidth + 2*self.paddingX
 end
 
-function textbox:setTextSound(sound)
-	self.textSound = sound
+function textbox:getHeight()
+	return self.textLinesMax * self.font:getHeight() + self.paddingY*2
 end
 
-function textbox:setEndSound(sound)
-	self.endSound = sound
+function textbox:setIcon(icon, right, bottom)
+	self.icon = icon
+	self.iconRight = right
+	self.iconBottom = bottom
 end
 
-function textbox:setFont(font)
-	self.font = font
-end
-
-function textbox:setTexts(texts)
-	self.texts = texts
+function textbox:setText(textList, options, callback)
+	self.textList = textList
 	self.textPage = 1
-	self:setText(texts[1])
+	self:read(textList[1])
+	self.options = options or {}
+	self.optionsIndex = 0
+	self.optionsCallback = callback
 end
 
 function textbox:nextPage()
-	if #self.texts > 0 then
+	if #self.textList > 0 then
 		self.textPage = self.textPage + 1
-		if self.textPage <= #self.texts then
-			self:setText(self.texts[self.textPage])
-			self.stopped = false
-			self.timer = self.beatSpeed
+		if self.textPage <= #self.textList then
+			self:read(self.textList[self.textPage])
+			self.writing = true
 		else
 			self.visible = false
 		end
@@ -60,7 +63,7 @@ function textbox:nextPage()
 	end
 end
 
-function textbox:setText(text)
+function textbox:read(text)
 	local formatted = ''
 	local lineWidth = 0
 	local word = ''
@@ -94,23 +97,24 @@ function textbox:setText(text)
 
 	self.text = formatted;
 	self.displayText = ''
-	self.timer = 0
-	self.index = 0
-	self.lines = 1
-	self.stopped = false
+	self.timer = self.beatSpeed
+	self.charIndex = 0
+	self.textLines = 1
+	self.visible = true
+	self.writing = true
 end
 
 function textbox:skip(dt)
 	if self.timer > 0 then
 		self.timer = self.timer - dt
-	elseif self.index < self.text:len() then
+	elseif self.charIndex < self.text:len() then
 		if self.textSound then
 			self.textSound:play()
 		end
 		while self.timer <= 0 do
-			self.index = self.index+1
+			self.charIndex = self.charIndex+1
 
-			local remainder = self.text:sub(self.index)
+			local remainder = self.text:sub(self.charIndex)
 			local char = remainder:sub(0, 1)
 
 			if char == '`' then
@@ -119,30 +123,47 @@ function textbox:skip(dt)
 				self.timer = self.timer + self.textSpeed
 				self.displayText = self.displayText .. char
 				if char == '\n' then
-					self.lines = self.lines+1
-					if self.lines > self.maxLines then
+					self.textLines = self.textLines+1
+					if self.textLines > self.textLinesMax then
 						self.displayText = self.displayText:sub(self.displayText:find('\n')+1)
 					end
 				end
 			end
 		end
-	elseif not self.stopped then
-		self.stopped = true
+	elseif self.writing then
+		self.writing = false
 	end
+end
+
+function textbox:optionsActive()
+	return not self.writing and #self.options > 0 and self.textPage == #self.textList
 end
 
 function textbox:update(dt)
 	if not self.visible then return end
-	self:skip(dt)
-	function love.keypressed(key, isrepeat)
+	if self.writing then
+		self:skip(dt)
+	end
+	function love.keypressed(key)
 		if not self.visible then return end
 		if key == 'a' then
-			self:skip(self.beatSpeed*self.text:len())
-			if self.stopped then
+			if not self.writing then
+				if self:optionsActive() then
+					self.optionsCallback(self.options[self.optionsIndex+1])
+				elseif #self.textList > 0 then
+					self:nextPage()
+				end
 				if self.endSound then
 					self.endSound:play()
 				end
-				self:nextPage()
+			else
+				self:skip(self.beatSpeed*self.text:len())
+			end
+		elseif self:optionsActive() then
+			if key == 'up' then
+				self.optionsIndex = (self.optionsIndex-1) % #self.options
+			elseif key == 'down' then
+				self.optionsIndex = (self.optionsIndex+1) % #self.options
 			end
 		end
 	end
@@ -151,13 +172,28 @@ end
 function textbox:draw()
 	if not self.visible then return end
 	love.graphics.setColor(70, 70, 70)
-	love.graphics.rectangle('fill', self.x, self.y, self.maxWidth + self.paddingX*2, self.maxLines * self.font:getHeight() + self.paddingY*2)
+	love.graphics.rectangle('fill', self.x, self.y, self:getWidth(), self:getHeight())
 	love.graphics.setColor(255, 255, 255)
 
 	local oldFont = love.graphics.getFont()
 	love.graphics.setFont(self.font)
-	love.graphics.print(self.displayText, self.x+self.paddingX, self.y+self.paddingY)
+	love.graphics.print(self.displayText, self.x + self.paddingX, self.y + self.paddingY)
 	love.graphics.setFont(oldFont)
+
+	if self.icon and not self.writing and not self:optionsActive() then
+		love.graphics.draw(self.icon, self.x + self:getWidth() - self.iconRight, self.y + self:getHeight() - self.iconBottom)
+	end
+
+	if self:optionsActive() then
+		local option
+		for i = 1, #self.options do
+			option = self.options[i]
+			love.graphics.print(option, self.x+self:getWidth()+64, self.y+i*16)
+			if i == self.optionsIndex+1 then
+				love.graphics.draw(self.icon, self.x+self:getWidth()+48, self.y+i*16+3)
+			end
+		end
+	end
 end
 
 
