@@ -1,39 +1,31 @@
 Textbox = require 'textbox'
 
 function love.load()
+	love.graphics.setBackgroundColor(0, 0, 0)
 	tb = Textbox:new()
-	-- tb:setFont(love.graphics.newFont('data/Retro Computer_DEMO.ttf', 14))
 	tb.font = love.graphics.newFont('data/babyblue.ttf', 16)
 	tb.x, tb.y = 100, 100
+	tb.paddingX, tb.paddingY = 20, 20
+	tb.textWidth, tb.textHeight = 320, 3
 	tb.textSound = love.audio.newSource('aud/blip.wav')
 	tb.endSound = love.audio.newSource('aud/bleep.wav')
 	tb.scrollSound = love.audio.newSource('aud/blap.wav')
 	tb:setIcon(love.graphics.newImage('img/dot.png'), 16, 16)
-	-- tb:setText({
-	-- 		'As you probably know by now,` LOVE is a framework for making 2D games in the Lua programming language.',
-	-- 		'LOVE is totally free,` and can be used in anything from friendly open-source hobby projects,` to evil,` closed-source commercial ones.',
-	-- 		'This is the full source for \'hello world\' in LOVE.',
-	-- 		'Running this code will cause an 640 by 400 window to appear,` and display white text on a black background.'
-	-- 	})
-	local function cb(option)
-		if option == 'yes' then
-			tb:setText({'good'})
-		else
-			tb:setText(
-				{'As you probably know by now,` LOVE is a framework for making 2D games in the Lua programming language.',
-				'do you understand'},
-				{'no','maybe','yes'}, cb)
-		end
-	end
-	tb:setText(
-		{'As you probably know by now,` LOVE is a framework for making 2D games in the Lua programming language.',
-		'do you understand'},
-		{'no','maybe','yes'}, cb)
-	
+	tb:setPatch(love.graphics.newImage('img/patch.png'))
+	tb:setText({
+		'Shall I compare thee to a summer\'s day?',
+		'Thou art more lovely and more temperate:` Rough winds do shake the darling buds of May,` And summer\'s lease hath all too short a date.'
+		}, {'FIGHT', 'ITEM', 'PKMN', 'RUN'},
+		function(option)
+			tb:setText({'It doesn\'t actually matter what you do.'})
+		end)
 end
 
 function love.update(dt)
 	tb:update(dt)
+	if love.keyboard.isDown('escape') then
+		love.event.push('quit')
+	end
 end
 
 function love.draw()
