@@ -7,6 +7,7 @@ function love.load()
 	tb.x, tb.y = 100, 100
 	tb.textSound = love.audio.newSource('aud/blip.wav')
 	tb.endSound = love.audio.newSource('aud/bleep.wav')
+	tb.scrollSound = love.audio.newSource('aud/blap.wav')
 	tb:setIcon(love.graphics.newImage('img/dot.png'), 16, 16)
 	-- tb:setText({
 	-- 		'As you probably know by now,` LOVE is a framework for making 2D games in the Lua programming language.',

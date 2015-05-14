@@ -23,6 +23,7 @@ local function new()
 	t.options = {}
 	t.optionsIndex = 0
 	t.optionsCallback = nil
+	t.profile = nil
 	return setmetatable(t, textbox)
 end
 
@@ -162,8 +163,14 @@ function textbox:update(dt)
 		elseif self:optionsActive() then
 			if key == 'up' then
 				self.optionsIndex = (self.optionsIndex-1) % #self.options
+				if self.scrollSound then
+					self.scrollSound:play()
+				end
 			elseif key == 'down' then
 				self.optionsIndex = (self.optionsIndex+1) % #self.options
+				if self.scrollSound then
+					self.scrollSound:play()
+				end
 			end
 		end
 	end
