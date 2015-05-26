@@ -1,32 +1,44 @@
-local textbox = {}
-textbox.__index = textbox
+local Textbox = {}
+Textbox.__index = Textbox
+
+local textList = {}
+local textPage = 1
+local textTimer = 0
+local timer = 0
+local charIndex = 0
+local textLine = 1
+local displayText = ''
+local writing = false
+local visible = false
+local options = {}
+local optionIndex = 0
+local optionCallback = nil
 
 local function new()
-	local tb = {}
-	tb.textList = {}
-	tb.textPage = 1
-	tb.timer = 0
-	tb.charIndex = 0
-	tb.textLine = 1
-	tb.displayText = ''
-	tb.writing = false
-	tb.visible = false
-	tb.options = {}
-	tb.optionIndex = 0
-	tb.optionCallback = nil
+	local self = {}
 	
-	tb.font = love.graphics.newFont()
-	tb.textSpeed = 0.01
-	tb.beatSpeed = 0.2
-	tb.textWidth, tb.textHeight = 320, 2
-	tb.paddingX, tb.paddingY = 0, 0
-	tb.x, tb.y = 0, 0
-	tb.patch = nil
-	tb.profile = nil
-	return setmetatable(tb, textbox)
+	self.font = love.graphics.newFont()
+	self.textSpeed = 0.01
+	self.beatSpeed = 0.2
+	self.textWidth, self.textHeight = 320, 2
+	self.textPadding = {
+		l = 12,
+		r = 12,
+		t = 12,
+		b = 12
+	}
+	self.x, self.y = 0, 0
+	self.patch = nil
+	self.profile = nil
+	self.textColor = {
+		r = 0,
+		g = 0,
+		b = 0
+	}
+	return setmetatable(self, Textbox)
 end
 
-function textbox:setPatch(patch)
+function Textbox:setPatch(patch)
 	self.patch = patch
 	local pw, ph = patch:getWidth(), patch:getHeight()
 	self.patchTL = love.graphics.newQuad(0, 0, pw/3, ph/3, patch:getDimensions())
@@ -43,44 +55,50 @@ function textbox:setPatch(patch)
 	self.patchW, self.patchH = pw/3, ph/3
 end
 
-function textbox:getWidth()
-	return self.textWidth + 2*self.paddingX
+function Textbox:setColor(r, g, b)
+	self.textColor.r = r
+	self.textColor.g = g
+	self.textColor.b = b
 end
 
-function textbox:getHeight()
-	return self.textHeight * self.font:getHeight() + self.paddingY*2
+function Textbox:getWidth()
+	return self.textWidth + self.textPadding.l + self.textPadding.r
 end
 
-function textbox:setIcon(icon, right, bottom)
+function Textbox:getHeight()
+	return self.textHeight * self.font:getHeight() + self.textPadding.t + self.textPadding.b
+end
+
+function Textbox:setIcon(icon, right, bottom)
 	self.icon = icon
 	self.iconRight = right
 	self.iconBottom = bottom
 end
 
-function textbox:setText(textList, options, callback)
-	self.textList = textList
-	self.textPage = 1
+function Textbox:setText(list, opts, callback)
+	textList = list
+	textPage = 1
 	self:read(textList[1])
-	self.options = options or {}
-	self.optionIndex = 0
-	self.optionCallback = callback
+	options = opts or {}
+	optionIndex = 0
+	optionCallback = callback
 end
 
-function textbox:nextPage()
-	if #self.textList > 0 then
-		self.textPage = self.textPage + 1
-		if self.textPage <= #self.textList then
-			self:read(self.textList[self.textPage])
-			self.writing = true
+function Textbox:nextPage()
+	if #textList > 0 then
+		textPage = textPage + 1
+		if textPage <= #textList then
+			self:read(textList[textPage])
+			writing = true
 		else
-			self.visible = false
+			visible = false
 		end
 	else
-		self.visible = false
+		visible = false
 	end
 end
 
-function textbox:read(text)
+function Textbox:read(text)
 	local formatted = ''
 	local lineWidth = 0
 	local word = ''
@@ -113,62 +131,63 @@ function textbox:read(text)
 	end
 
 	self.text = formatted;
-	self.displayText = ''
-	self.timer = self.beatSpeed
-	self.charIndex = 0
-	self.textLine = 1
-	self.visible = true
-	self.writing = true
+	displayText = ''
+	textTimer = self.beatSpeed
+	charIndex = 0
+	textLine = 1
+	visible = true
+	writing = true
 end
 
-function textbox:skip(dt)
-	if self.timer > 0 then
-		self.timer = self.timer - dt
-	elseif self.charIndex < self.text:len() then
-		while self.timer <= 0 do
-			self.charIndex = self.charIndex+1
+function Textbox:skip(dt)
+	if textTimer > 0 then
+		textTimer = textTimer - dt
+	elseif charIndex < self.text:len() then
+		while textTimer <= 0 do
+			charIndex = charIndex+1
 
-			local remainder = self.text:sub(self.charIndex)
+			local remainder = self.text:sub(charIndex)
 			local char = remainder:sub(0, 1)
 
 			if char == '`' then
-				self.timer = self.timer + self.beatSpeed
+				textTimer = textTimer + self.beatSpeed
 			else
 
 				if self.textSound then
 					self.textSound:play()
 				end
-				self.timer = self.timer + self.textSpeed
-				self.displayText = self.displayText .. char
+				textTimer = textTimer + self.textSpeed
+				displayText = displayText .. char
 				if char == '\n' then
-					self.textLine = self.textLine+1
-					if self.textLine > self.textHeight then
-						self.displayText = self.displayText:sub(self.displayText:find('\n')+1)
+					textLine = textLine+1
+					if textLine > self.textHeight then
+						displayText = displayText:sub(displayText:find('\n')+1)
 					end
 				end
 			end
 		end
-	elseif self.writing then
-		self.writing = false
+	elseif writing then
+		writing = false
 	end
 end
 
-function textbox:optionsActive()
-	return not self.writing and #self.options > 0 and self.textPage == #self.textList
+function Textbox:optionsActive()
+	return not writing and #options > 0 and textPage == #textList
 end
 
-function textbox:update(dt)
-	if not self.visible then return end
-	if self.writing then
+function Textbox:update(dt)
+	timer = (timer + dt*10) % (math.pi*2)
+	if not visible then return end
+	if writing then
 		self:skip(dt)
 	end
 	function love.keypressed(key)
-		if not self.visible then return end
+		if not visible then return end
 		if key == ' ' then
-			if not self.writing then
+			if not writing then
 				if self:optionsActive() then
-					self.optionCallback(self.options[self.optionIndex+1], self.optionIndex)
-				elseif #self.textList > 0 then
+					optionCallback(options[optionIndex+1], optionIndex)
+				elseif #textList > 0 then
 					self:nextPage()
 				end
 				if self.endSound then
@@ -179,12 +198,12 @@ function textbox:update(dt)
 			end
 		elseif self:optionsActive() then
 			if key == 'up' then
-				self.optionIndex = (self.optionIndex-1) % #self.options
+				optionIndex = (optionIndex-1) % #options
 				if self.scrollSound then
 					self.scrollSound:play()
 				end
 			elseif key == 'down' then
-				self.optionIndex = (self.optionIndex+1) % #self.options
+				optionIndex = (optionIndex+1) % #options
 				if self.scrollSound then
 					self.scrollSound:play()
 				end
@@ -193,7 +212,7 @@ function textbox:update(dt)
 	end
 end
 
-function textbox:drawBox(x, y, w, h)
+function Textbox:drawBox(x, y, w, h)
 	if not self.patch then return end
 	local sx = (w - 2*self.patchW) / self.patchW
 	local sy = (h - 2*self.patchH) / self.patchH
@@ -211,49 +230,55 @@ function textbox:drawBox(x, y, w, h)
 	love.graphics.draw(self.patch, self.patchBR, x + w - self.patchW, y + h - self.patchH)
 end
 
-function textbox:drawOptions(x, y)
+function Textbox:drawOptions(x, y)
 	if not self:optionsActive() then return end
-	self:drawBox(x, y, 84, #self.options*16 + 2*self.paddingY)
+	local fontHeight = self.font:getHeight()
+	self:drawBox(x, y, 84, #options * fontHeight + self.textPadding.t + self.textPadding.b)
 
 	local oldFont = love.graphics.getFont()
-	love.graphics.setColor(0, 0, 0)
+	love.graphics.setColor(self.textColor.r, self.textColor.g, self.textColor.b)
 	love.graphics.setFont(self.font)
 	local option
-	for i = 1, #self.options do
-		option = self.options[i]
-		if i == self.optionIndex+1 then
+	for i = 1, #options do
+		option = options[i]
+		if i == optionIndex+1 then
 			love.graphics.setColor(146, 182, 182)
-			love.graphics.print(option, x + self.paddingX, y + self.paddingY + (i-1)*16)
-			love.graphics.setColor(0, 0, 0)
 		else
-			love.graphics.print(option, x + self.paddingX, y + self.paddingY + (i-1)*16)
+			love.graphics.setColor(self.textColor.r, self.textColor.g, self.textColor.b)
 		end
+		love.graphics.print(option, x + self.textPadding.r, y + self.textPadding.t + (i-1)*fontHeight)
 	end
 	love.graphics.setFont(oldFont)
 	love.graphics.setColor(255, 255, 255)
 
 	if self.icon then
-		-- love.graphics.draw(self.icon, x+6, y + self.paddingY + self.optionIndex*16+4)
+		-- love.graphics.draw(self.icon, x+6 + 2*math.sin(self.timer), y + self.paddingY + optionIndex*16+4)
 	end
 end
 
-function textbox:draw()
-	if not self.visible then return end
+function Textbox:drawProfile()
+	if not self.profile then return end
+
+	love.graphics.draw(self.profile.avatar, self.x + self.textPadding.r, self.y + self.textPadding.t)
+end
+
+function Textbox:draw()
+	if not visible then return end
 
 	self:drawBox(self.x, self.y, self:getWidth(), self:getHeight())
-	self:drawOptions(self.x + self:getWidth() + self.paddingX, self.y)
+	self:drawOptions(self.x + self:getWidth() + self.textPadding.l, self.y)
+	self:drawProfile()
 	
 	local oldFont = love.graphics.getFont()
-	love.graphics.setColor(0, 0, 0)
+	love.graphics.setColor(self.textColor.r, self.textColor.g, self.textColor.b)
 	love.graphics.setFont(self.font)
-	love.graphics.print(self.displayText, self.x + self.paddingX, self.y + self.paddingY)
+	love.graphics.print(displayText, self.x + self.textPadding.l, self.y + self.textPadding.t)
 	love.graphics.setFont(oldFont)
 	love.graphics.setColor(255, 255, 255)
 
-	if self.icon and not self.writing and not self:optionsActive() then
-		love.graphics.draw(self.icon, self.x + self:getWidth() - self.iconRight, self.y + self:getHeight() - self.iconBottom)
+	if self.icon and not writing and not self:optionsActive() then
+		love.graphics.draw(self.icon, self.x + self:getWidth() - self.iconRight, self.y + self:getHeight() - self.iconBottom + 2*math.sin(timer))
 	end
 end
 
-
-return setmetatable({new = new}, {__call = function(_, ...) return new(...) end})
+return setmetatable({}, { __call = function(_, ...) return new(...) end })
