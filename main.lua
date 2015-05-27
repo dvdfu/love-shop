@@ -4,7 +4,7 @@ function love.load()
 	love.graphics.setDefaultFilter('nearest', 'nearest')
 	love.graphics.setBackgroundColor(180, 200, 220)
 
-	tb = Textbox()
+	tb = Textbox.new()
 	tb.font = love.graphics.newFont('data/babyblue.ttf', 16)
 	tb.x, tb.y = 100, 100
 	tb.textWidth, tb.textHeight = 240, 3
